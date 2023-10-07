@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import threading
 
@@ -16,6 +17,30 @@ print(f"Server is listening on {HOST}:{PORT}")
 clients = {}
 rooms = {}
 users = {}
+
+
+def handle_file_upload(payload, client_socket):
+    file_name = payload.get("file_name")
+    is_image = payload.get("is_image")
+    file_content = payload.get("file_content")
+
+    room_name = clients.get(client_socket)
+
+    if room_name:
+        for client in rooms[room_name]:
+            if client != client_socket:
+                send_file_to_client(file_name, file_content, client)
+
+
+def send_file_to_client(file_name, file_content, client_socket):
+    file_message = {
+        "message_type": "file",
+        "payload": {
+            "file_name": file_name,
+            "file_content": file_content,
+        }
+    }
+    client_socket.send(json.dumps(file_message).encode('utf-8'))
 
 
 def send_room_message(payload, client_socket):
@@ -97,7 +122,10 @@ def handle_client(client_socket, client_address):
                 elif message_type == "message":
                     send_room_message(payload, client_socket)
                 elif message_type == "upload":
-                    print(1)
+                    if payload.get("is_image"):
+                        pass
+                    else:
+                        handle_file_upload(payload, client_socket)
             except json.JSONDecodeError:
                 pass
 
@@ -106,8 +134,8 @@ def handle_client(client_socket, client_address):
 
     finally:
         room_name = clients.get(client_socket)
-        if room_name:
 
+        if room_name:
             rooms[room_name].remove(client_socket)
 
             username = users[client_socket]
@@ -118,6 +146,7 @@ def handle_client(client_socket, client_address):
 
             for client in rooms[room_name]:
                 send_notification(client, notification_message)
+
         client_socket.close()
 
 
