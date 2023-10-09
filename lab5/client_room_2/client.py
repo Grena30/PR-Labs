@@ -37,6 +37,7 @@ def send_file_to_server(file_path, file_name):
         upload_file_message.get("payload")["file_content"] = file_content
         client_socket.send(json.dumps(upload_file_message).encode('utf-8'))
 
+
 def download_file(payload):
     file_name = payload.get("file_name")
     file_content = payload.get("file_content")
@@ -60,6 +61,37 @@ def list_files_in_folder(folder_path):
     return files
 
 
+def request_server_files_list():
+    files_list_request = {
+        "message_type": "server_files_list",
+        "payload": {}
+    }
+
+    client_socket.send(json.dumps(files_list_request).encode('utf-8'))
+
+
+def download_server_file(file_name):
+    download_file_request = {
+        "message_type": "download_file",
+        "payload": {
+            "file_name": file_name
+        }
+    }
+
+    client_socket.send(json.dumps(download_file_request).encode('utf-8'))
+
+
+def server_list(payload):
+    server_files = payload.get("files", [])
+
+    if server_files:
+        print("\nAvailable server files:")
+        for index, file_name in enumerate(server_files, start=1):
+            print(f"{index}. {file_name}")
+    else:
+        print("\nNo files available on the server.")
+
+
 def receive_messages():
     while True:
         message = client_socket.recv(1024).decode('utf-8')
@@ -74,6 +106,9 @@ def receive_messages():
 
             if message_type == "file":
                 download_file(payload)
+
+            elif message_type == "server_files_list":
+                server_list(payload)
 
         except json.JSONDecodeError:
             print(f"\nReceived: {message}")
@@ -97,7 +132,7 @@ connect_message = {
 client_socket.send(json.dumps(connect_message).encode('utf-8'))
 
 while True:
-    text = input("Enter a message ('exit' to quit, 'upload' or 'u' to add a file): ")
+    text = input("Enter a message ('exit' to quit, 'upload' or 'u', 'list' or 'l', 'download' or 'd'): ")
 
     if not text:
         continue
@@ -132,6 +167,13 @@ while True:
                     print("Invalid file choice.")
             except ValueError:
                 print("Invalid input. Please enter a valid number.")
+
+    elif text.lower() == 'list' or text.lower() == 'l':
+        request_server_files_list()
+
+    elif text.lower() == 'download' or text.lower() == 'd':
+        file_name = input("Enter the name of the file to download:")
+        download_server_file(file_name)
 
     else:
         message = {
