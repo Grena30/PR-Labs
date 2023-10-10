@@ -38,6 +38,7 @@ def handle_file_upload(payload, client_socket):
     file_name = payload.get("file_name")
     room_name = clients.get(client_socket)
     file_content = payload.get("file_content")
+    sender = users[client_socket]
 
     if not room_name:
         return
@@ -52,6 +53,12 @@ def handle_file_upload(payload, client_socket):
 
     with open(os.path.join(room_dir, file_name), "wb") as file:
         file.write(base64.b64decode(file_content))
+
+    message_user = f"{sender} uploaded the file: {file_name}"
+    if room_name in rooms:
+        for client in rooms[room_name]:
+            if client != client_socket:
+                client.send(message_user.encode('utf-8'))
 
 
 def send_file_to_client(file_name, file_content, client_socket):

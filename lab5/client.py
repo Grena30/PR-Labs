@@ -34,12 +34,12 @@ def download_file(payload):
     file_name = payload.get("file_name")
     file_content = payload.get("file_content")
 
-    if not os.path.exists("files"):
-        os.makedirs("files")
+    if not os.path.exists(f"files_{username}"):
+        os.makedirs(f"files_{username}")
 
     time.sleep(1)
 
-    with open(os.path.join("files", file_name), "wb") as file:
+    with open(os.path.join(f"files_{username}", file_name), "wb") as file:
         file.write(base64.b64decode(file_content))
 
     print(f"Received file: {file_name}")
@@ -134,10 +134,10 @@ while True:
 
     elif text.lower() == 'upload' or text.lower() == 'u':
 
-        if not os.path.exists("files"):
-            os.makedirs("files")
+        if not os.path.exists(f"files_{username}"):
+            os.makedirs(f"files_{username}")
 
-        file_list = list_files_in_folder("files")
+        file_list = list_files_in_folder(f"files_{username}")
 
         if not file_list:
             print("No files found in the 'files' directory.")
@@ -151,7 +151,7 @@ while True:
 
                 if 0 <= file_choice < len(file_list):
                     selected_file = file_list[file_choice]
-                    file_path = os.path.join("files", selected_file)
+                    file_path = os.path.join(f"files_{username}", selected_file)
 
                     send_file_to_server(file_path, selected_file)
                     continue
