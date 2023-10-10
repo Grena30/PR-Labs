@@ -19,23 +19,15 @@ def send_file_to_server(file_path, file_name):
     with open(file_path, "rb") as file:
         file_content = base64.b64encode(file.read()).decode('utf-8')
 
-    is_image = file_name.endswith(".jpg") or file_name.endswith(".png")
-
     upload_file_message = {
         "message_type": "upload",
         "payload": {
             "file_name": file_name,
-            "is_image": is_image,
-            "file_content": None,
+            "file_content": file_content,
         }
     }
 
-    if is_image:
-        client_socket.send(json.dumps(upload_file_message).encode('utf-8'))
-        client_socket.send(file_content.encode('utf-8'))
-    else:
-        upload_file_message.get("payload")["file_content"] = file_content
-        client_socket.send(json.dumps(upload_file_message).encode('utf-8'))
+    client_socket.send(json.dumps(upload_file_message).encode('utf-8'))
 
 
 def download_file(payload):
@@ -94,7 +86,7 @@ def server_list(payload):
 
 def receive_messages():
     while True:
-        message = client_socket.recv(1024).decode('utf-8')
+        message = client_socket.recv(262144).decode('utf-8')
 
         if not message:
             break
@@ -172,7 +164,12 @@ while True:
         request_server_files_list()
 
     elif text.lower() == 'download' or text.lower() == 'd':
-        file_name = input("Enter the name of the file to download:")
+        file_name = input("Enter the name of the file to download: ")
+
+        if not file_name:
+            print("Invalid file name.")
+            continue
+
         download_server_file(file_name)
 
     else:

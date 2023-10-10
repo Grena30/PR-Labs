@@ -20,29 +20,37 @@ rooms = {}
 users = {}
 
 
-def list_server_files():
+def list_server_files(client_socket):
+    room_name = clients.get(client_socket)
+    room_dir = os.path.join("server_files", room_name)
+
     files = []
 
-    if not os.path.exists("server_files"):
-        os.makedirs("server_files")
-        return files
-
-    for filename in os.listdir("server_files"):
-        if os.path.isfile(os.path.join("server_files", filename)):
-            files.append(filename)
+    if os.path.exists(room_dir):
+        for filename in os.listdir(room_dir):
+            if os.path.isfile(os.path.join(room_dir, filename)):
+                files.append(filename)
 
     return files
 
 
-def handle_file_upload(payload):
+def handle_file_upload(payload, client_socket):
     file_name = payload.get("file_name")
-    is_image = payload.get("is_image")
+    room_name = clients.get(client_socket)
     file_content = payload.get("file_content")
+
+    if not room_name:
+        return
 
     if not os.path.exists("server_files"):
         os.makedirs("server_files")
 
-    with open(os.path.join("server_files", file_name), "wb") as file:
+    room_dir = os.path.join("server_files", room_name)
+
+    if not os.path.exists(room_dir):
+        os.makedirs(room_dir)
+
+    with open(os.path.join(room_dir, file_name), "wb") as file:
         file.write(base64.b64decode(file_content))
 
 
@@ -57,16 +65,22 @@ def send_file_to_client(file_name, file_content, client_socket):
     client_socket.send(json.dumps(file_message).encode('utf-8'))
 
 
-def send_file(payload, client_socket):
+def find_file(payload, client_socket):
     if not os.path.exists("server_files"):
         os.makedirs("server_files")
         client_socket.send("File not found".encode('utf-8'))
         return
 
-    file_name = payload.get("file_name")
+    room_name = clients.get(client_socket)
 
-    if os.path.exists(os.path.join("server_files", file_name)):
-        with open(os.path.join("server_files", file_name), "rb") as file:
+    if not room_name:
+        return
+
+    file_name = payload.get("file_name")
+    room_dir = os.path.join("server_files", room_name)
+
+    if os.path.exists(os.path.join(room_dir, file_name)):
+        with open(os.path.join(room_dir, file_name), "rb") as file:
             file_content = base64.b64encode(file.read()).decode('utf-8')
             send_file_to_client(file_name, file_content, client_socket)
     else:
@@ -74,7 +88,12 @@ def send_file(payload, client_socket):
 
 
 def send_server_files_list(client_socket):
-    server_files = list_server_files()
+    if not os.path.exists("server_files"):
+        os.makedirs("server_files")
+        client_socket.send("No files found".encode('utf-8'))
+        return
+
+    server_files = list_server_files(client_socket)
 
     if not server_files or len(server_files) == 0:
         client_socket.send("No files found".encode('utf-8'))
@@ -152,7 +171,7 @@ def handle_client(client_socket, client_address):
 
     try:
         while True:
-            message = client_socket.recv(1024).decode('utf-8')
+            message = client_socket.recv(262144).decode('utf-8')
 
             if not message:
                 break
@@ -169,14 +188,11 @@ def handle_client(client_socket, client_address):
                 elif message_type == "message":
                     send_room_message(payload, client_socket)
                 elif message_type == "upload":
-                    if payload.get("is_image"):
-                        pass
-                    else:
-                        handle_file_upload(payload)
+                    handle_file_upload(payload, client_socket)
                 elif message_type == "server_files_list":
                     send_server_files_list(client_socket)
                 elif message_type == "download_file":
-                    send_file(payload, client_socket)
+                    find_file(payload, client_socket)
             except json.JSONDecodeError:
                 pass
 
