@@ -83,10 +83,13 @@ def send_download_file(payload, client_socket):
     room_name = clients.get(client_socket)
 
     if not room_name:
+        client_socket.send("File not found".encode('utf-8'))
         return
 
     file_name = payload.get("file_name")
     room_dir = os.path.join("server_files", room_name)
+
+    create_directory(room_dir)
 
     if os.path.exists(os.path.join(room_dir, file_name)):
         with open(os.path.join(room_dir, file_name), "rb") as file:

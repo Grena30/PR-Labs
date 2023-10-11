@@ -104,7 +104,6 @@ def request_server_file(name):
             "file_name": name
         }
     }
-
     client_socket.send(json.dumps(download_file_request).encode('utf-8'))
 
 
@@ -117,6 +116,19 @@ def get_room_message(payload):
     message = payload.get("message")
     sender = payload.get("sender")
     print(f"\n{sender}: {message}")
+
+
+def get_file_path():
+    file_path = input("Enter the path to the file: ")
+    if not file_path:
+        print("Invalid file path.")
+        return
+
+    if not os.path.exists(file_path):
+        print("File not found.")
+        return
+
+    return file_path
 
 
 def receive_messages():
@@ -150,41 +162,49 @@ def receive_messages():
             print(f"\nReceived: {message}")
 
 
-def input_file_name():
-    name = input("Enter the name of the file to download: ")
-
-    if not name:
-        print("Invalid file name.")
-        return
-    return name
-
-
 def create_upload(client_name):
-    if not os.path.exists(f"files_{client_name}"):
-        os.makedirs(f"files_{client_name}")
+    print("1. File choice from 'files' directory ")
+    print("2. File path")
+    choice = input("Enter the number of the file upload method: ")
 
-    file_list = list_client_files(f"files_{client_name}")
+    if choice == "1":
+        if not os.path.exists(f"files_{client_name}"):
+            os.makedirs(f"files_{client_name}")
 
-    if not file_list:
-        print("No files found in the 'files' directory.")
+        file_list = list_client_files(f"files_{client_name}")
+
+        if not file_list:
+            print("No files found in the 'files' directory.")
+        else:
+            print("Available files for upload:")
+            for i, name in enumerate(file_list, start=1):
+                print(f"{i}. {name}")
+
+            try:
+                file_choice = int(input("Enter the number of the file to upload: ")) - 1
+
+                if 0 <= file_choice < len(file_list):
+                    selected_file = file_list[file_choice]
+                    file_path = os.path.join(f"files_{client_name}", selected_file)
+
+                    send_file(file_path, selected_file)
+                    return
+                else:
+                    print("Invalid file choice.")
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
+
+    elif choice == "2":
+        file_path = get_file_path()
+
+        if not file_path:
+            return
+
+        file_name = os.path.basename(file_path)
+        send_file(file_path, file_name)
+
     else:
-        print("Available files for upload:")
-        for i, name in enumerate(file_list, start=1):
-            print(f"{i}. {name}")
-
-        try:
-            file_choice = int(input("Enter the number of the file to upload: ")) - 1
-
-            if 0 <= file_choice < len(file_list):
-                selected_file = file_list[file_choice]
-                file_path = os.path.join(f"files_{client_name}", selected_file)
-
-                send_file(file_path, selected_file)
-                return
-            else:
-                print("Invalid file choice.")
-        except ValueError:
-            print("Invalid input. Please enter a valid number.")
+        print("Invalid choice.")
 
 
 receive_thread = threading.Thread(target=receive_messages)
@@ -209,7 +229,11 @@ while True:
         request_server_list()
 
     elif text.lower() == 'download' or text.lower() == 'd':
-        file_name = input_file_name()
+        file_name = input("Enter the name of the file to download: ")
+        if not file_name:
+            print("Invalid file name.")
+            continue
+
         request_server_file(file_name)
 
     else:
