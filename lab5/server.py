@@ -20,7 +20,14 @@ rooms = {}
 users = {}
 
 
+def create_directory(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def list_server_files(client_socket):
+    create_directory("server_files")
+
     room_name = clients.get(client_socket)
     room_dir = os.path.join("server_files", room_name)
 
@@ -43,13 +50,11 @@ def handle_file_upload(payload, client_socket):
     if not room_name:
         return
 
-    if not os.path.exists("server_files"):
-        os.makedirs("server_files")
+    create_directory("server_files")
 
     room_dir = os.path.join("server_files", room_name)
 
-    if not os.path.exists(room_dir):
-        os.makedirs(room_dir)
+    create_directory(room_dir)
 
     with open(os.path.join(room_dir, file_name), "wb") as file:
         file.write(base64.b64decode(file_content))
@@ -72,11 +77,8 @@ def send_file_to_client(file_name, file_content, client_socket):
     client_socket.send(json.dumps(file_message).encode('utf-8'))
 
 
-def find_file(payload, client_socket):
-    if not os.path.exists("server_files"):
-        os.makedirs("server_files")
-        client_socket.send("File not found".encode('utf-8'))
-        return
+def send_download_file(payload, client_socket):
+    create_directory("server_files")
 
     room_name = clients.get(client_socket)
 
@@ -94,12 +96,7 @@ def find_file(payload, client_socket):
         client_socket.send("File not found".encode('utf-8'))
 
 
-def send_server_files_list(client_socket):
-    if not os.path.exists("server_files"):
-        os.makedirs("server_files")
-        client_socket.send("No files found".encode('utf-8'))
-        return
-
+def send_server_list(client_socket):
     server_files = list_server_files(client_socket)
 
     if not server_files or len(server_files) == 0:
@@ -116,7 +113,7 @@ def send_server_files_list(client_socket):
     client_socket.send(json.dumps(files_list_message).encode('utf-8'))
 
 
-def send_room_message(payload, client_socket):
+def send_message_broadcast(payload, client_socket):
     text = payload.get("text")
     room = clients.get(client_socket)
     sender = users[client_socket]
@@ -126,17 +123,17 @@ def send_room_message(payload, client_socket):
         "payload": {
             "sender": sender,
             "room": room,
-            "text": text
+            "message": text
         }
     }
-    message_user = f"{sender}: {text}"
+
     if room in rooms:
         for client in rooms[room]:
             if client != client_socket:
-                client.send(message_user.encode('utf-8'))
+                client.send(json.dumps(message).encode('utf-8'))
 
 
-def send_room_connection(payload, client_socket):
+def send_connection_broadcast(payload, client_socket):
     client_name = payload.get("name")
     room_name = payload.get("room")
 
@@ -152,6 +149,8 @@ def send_room_connection(payload, client_socket):
         if client != client_socket:
             send_notification(client, notification_message)
 
+
+def send_connection_message():
     message = "Connected to the room."
     connect_ack_message = {
         "message_type": "connect_ack",
@@ -160,7 +159,7 @@ def send_room_connection(payload, client_socket):
         }
     }
 
-    client_socket.send(message.encode('utf-8'))
+    client_socket.send(json.dumps(connect_ack_message).encode('utf-8'))
 
 
 def send_notification(client_socket, notification_message):
@@ -170,7 +169,7 @@ def send_notification(client_socket, notification_message):
             "message": notification_message
         }
     }
-    client_socket.send(notification_message.encode('utf-8'))
+    client_socket.send(json.dumps(notification).encode('utf-8'))
 
 
 def handle_client(client_socket, client_address):
@@ -191,15 +190,15 @@ def handle_client(client_socket, client_address):
                 payload = message_dict.get("payload")
 
                 if message_type == "connect":
-                    send_room_connection(payload, client_socket)
+                    send_connection_broadcast(payload, client_socket)
                 elif message_type == "message":
-                    send_room_message(payload, client_socket)
+                    send_message_broadcast(payload, client_socket)
                 elif message_type == "upload":
                     handle_file_upload(payload, client_socket)
                 elif message_type == "server_files_list":
-                    send_server_files_list(client_socket)
+                    send_server_list(client_socket)
                 elif message_type == "download_file":
-                    find_file(payload, client_socket)
+                    send_download_file(payload, client_socket)
             except json.JSONDecodeError:
                 pass
 
