@@ -7,6 +7,7 @@ from models.electro_scooter import ElectroScooter
 
 def create_app():
     app = Flask(__name__)
+    #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost:5432/scooter_db'
     db.init_app(app)
     return app
@@ -26,4 +27,5 @@ if __name__ == '__main__':
     )
     app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
     import routes
+
     app.run()
