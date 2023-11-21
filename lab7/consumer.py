@@ -2,6 +2,8 @@ import pika
 from data_collector import *
 import sys
 import threading
+from random import randint
+from time import sleep
 from tinydb import TinyDB
 
 
